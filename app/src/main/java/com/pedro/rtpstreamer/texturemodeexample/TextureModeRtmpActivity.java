@@ -19,7 +19,6 @@ import com.pedro.rtplibrary.view.AutoFitTextureView;
 import java.io.File;
 import java.io.IOException;
 import java.text.SimpleDateFormat;
-import java.util.Arrays;
 import java.util.Date;
 import java.util.Locale;
 import net.ossrs.rtmp.ConnectCheckerRtmp;
@@ -57,7 +56,7 @@ public class TextureModeRtmpActivity extends AppCompatActivity
     switchCamera.setOnClickListener(this);
     etUrl = findViewById(R.id.et_rtp_url);
     etUrl.setHint(R.string.hint_rtmp);
-    rtmpCamera2 = new RtmpCamera2(textureView, this);
+//    rtmpCamera2 = new RtmpCamera2(textureView, this);
     textureView.setSurfaceTextureListener(this);
   }
 
@@ -128,7 +127,7 @@ public class TextureModeRtmpActivity extends AppCompatActivity
           if (rtmpCamera2.isRecording()
               || rtmpCamera2.prepareAudio() && rtmpCamera2.prepareVideo()) {
             button.setText(R.string.stop_button);
-            rtmpCamera2.startStream(Arrays.asList("rtmp://a.rtmp.youtube.com/live2/ap2y-k3fp-ma62-eybg-46ar", "rtmps://live-api-s.facebook.com:443/rtmp/FB-1382039858862049-0-Abzp9AEJL9KGGooe"));
+//            rtmpCamera2.startStream(etUrl.getText().toString());
           } else {
             Toast.makeText(this, "Error preparing stream, This device cant do it",
                 Toast.LENGTH_SHORT).show();

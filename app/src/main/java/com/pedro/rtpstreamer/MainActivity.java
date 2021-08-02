@@ -13,12 +13,10 @@ import android.widget.AdapterView;
 import android.widget.GridView;
 import android.widget.TextView;
 import android.widget.Toast;
-
 import com.pedro.rtpstreamer.backgroundexample.BackgroundActivity;
 import com.pedro.rtpstreamer.customexample.RtmpActivity;
 import com.pedro.rtpstreamer.customexample.RtspActivity;
 import com.pedro.rtpstreamer.defaultexample.ExampleRtmpActivity;
-
 import com.pedro.rtpstreamer.defaultexample.ExampleRtspActivity;
 import com.pedro.rtpstreamer.displayexample.DisplayActivity;
 import com.pedro.rtpstreamer.filestreamexample.RtmpFromFileActivity;

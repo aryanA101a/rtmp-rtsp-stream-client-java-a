@@ -145,7 +145,7 @@ public class RtspCamera2 extends Camera2Base {
 
   @Override
   protected void startStreamRtp(List<String> url) {
-    rtspClient.setUrl(url.get(0));
+//    rtspClient.connect(url);
   }
 
   @Override
@@ -184,7 +184,6 @@ public class RtspCamera2 extends Camera2Base {
     ByteBuffer newPps = pps.duplicate();
     ByteBuffer newVps = vps != null ? vps.duplicate() : null;
     rtspClient.setSPSandPPS(newSps, newPps, newVps);
-    rtspClient.connect();
   }
 
   @Override

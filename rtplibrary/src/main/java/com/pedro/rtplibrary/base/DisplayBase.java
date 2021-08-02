@@ -7,6 +7,7 @@ import android.media.AudioAttributes;
 import android.media.AudioPlaybackCaptureConfiguration;
 import android.media.MediaCodec;
 import android.media.MediaFormat;
+import android.media.MediaRecorder;
 import android.media.projection.MediaProjection;
 import android.media.projection.MediaProjectionManager;
 import android.os.Build;
@@ -150,8 +151,6 @@ public abstract class DisplayBase implements GetAacData, GetVideoData, GetMicrop
         videoEncoder.prepareVideoEncoder(width, height, fps, bitrate, rotation, iFrameInterval,
             FormatVideoEncoder.SURFACE, avcProfile, avcProfileLevel);
     if (glInterface != null) {
-      glInterface = new OffScreenGlThread(context);
-      glInterface.init();
       if (rotation == 90 || rotation == 270) {
         glInterface.setEncoderSize(videoEncoder.getHeight(), videoEncoder.getWidth());
       } else {
@@ -183,13 +182,21 @@ public abstract class DisplayBase implements GetAacData, GetVideoData, GetMicrop
    * @return true if success, false if you get a error (Normally because the encoder selected
    * doesn't support any configuration seated or your device hasn't a AAC encoder).
    */
-  public boolean prepareAudio(int bitrate, int sampleRate, boolean isStereo, boolean echoCanceler,
+  public boolean prepareAudio(int audioSource, int bitrate, int sampleRate, boolean isStereo, boolean echoCanceler,
       boolean noiseSuppressor) {
-    microphoneManager.createMicrophone(sampleRate, isStereo, echoCanceler, noiseSuppressor);
+    if (!microphoneManager.createMicrophone(audioSource, sampleRate, isStereo, echoCanceler, noiseSuppressor)) {
+      return false;
+    }
     prepareAudioRtp(isStereo, sampleRate);
     audioInitialized = audioEncoder.prepareAudioEncoder(bitrate, sampleRate, isStereo,
         microphoneManager.getMaxInputSize());
     return audioInitialized;
+  }
+
+  public boolean prepareAudio(int bitrate, int sampleRate, boolean isStereo, boolean echoCanceler,
+      boolean noiseSuppressor) {
+    return prepareAudio(MediaRecorder.AudioSource.DEFAULT, bitrate, sampleRate, isStereo, echoCanceler,
+        noiseSuppressor);
   }
 
   public boolean prepareAudio(int bitrate, int sampleRate, boolean isStereo) {
@@ -218,8 +225,10 @@ public abstract class DisplayBase implements GetAacData, GetVideoData, GetMicrop
             .addMatchingUsage(AudioAttributes.USAGE_GAME)
             .addMatchingUsage(AudioAttributes.USAGE_UNKNOWN)
             .build();
-    microphoneManager.createInternalMicrophone(config, sampleRate, isStereo, echoCanceler,
-        noiseSuppressor);
+    if (!microphoneManager.createInternalMicrophone(config, sampleRate, isStereo, echoCanceler,
+        noiseSuppressor)) {
+      return false;
+    }
     prepareAudioRtp(isStereo, sampleRate);
     audioInitialized = audioEncoder.prepareAudioEncoder(bitrate, sampleRate, isStereo,
         microphoneManager.getMaxInputSize());
@@ -363,6 +372,7 @@ public abstract class DisplayBase implements GetAacData, GetVideoData, GetMicrop
     videoEncoder.start();
     if (audioInitialized) audioEncoder.start();
     if (glInterface != null) {
+      glInterface.init();
       glInterface.setFps(videoEncoder.getFps());
       glInterface.start();
       glInterface.addMediaCodecSurface(videoEncoder.getInputSurface());
@@ -390,7 +400,7 @@ public abstract class DisplayBase implements GetAacData, GetVideoData, GetMicrop
     if (glInterface != null) {
       glInterface.removeMediaCodecSurface();
     }
-    videoEncoder.reset();
+    videoEncoder.forceKeyFrame();
     if (glInterface != null) {
       glInterface.addMediaCodecSurface(videoEncoder.getInputSurface());
     }

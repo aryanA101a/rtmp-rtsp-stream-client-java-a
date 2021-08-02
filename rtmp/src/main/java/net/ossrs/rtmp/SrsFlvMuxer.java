@@ -275,7 +275,7 @@ public class SrsFlvMuxer {
   /**
    * start to the remote SRS for remux.
    */
-  public void start(final String rtmpUrl, boolean isRetry) {
+  public void start(final String rtmpUrl, final boolean isRetry) {
     if (!isRetry) doingRetry = true;
     startTs = System.nanoTime() / 1000;
     worker = new Thread(new Runnable() {
@@ -285,6 +285,7 @@ public class SrsFlvMuxer {
         if (!connect(rtmpUrl)) {
           return;
         }
+        if (isRetry) flv.retry();
         reTries = numRetry;
         connectCheckerRtmp.onConnectionSuccessRtmp();
         while (!Thread.interrupted()) {
@@ -777,6 +778,11 @@ public class SrsFlvMuxer {
       aac_specific_config_got = false;
     }
 
+    public void retry() {
+      isPpsSpsSend = false;
+      aac_specific_config_got = false;
+    }
+
     public void writeAudioSample(final ByteBuffer bb, MediaCodec.BufferInfo bi) {
       int dts = (int) (bi.presentationTimeUs / 1000);
 
@@ -1033,13 +1039,8 @@ public class SrsFlvMuxer {
     }
 
     private void flvFrameCacheAdd(SrsFlvFrame frame) {
-      try {
-        if (frame.is_video()) {
-          mFlvVideoTagCache.add(frame);
-        } else {
-          mFlvAudioTagCache.add(frame);
-        }
-      } catch (IllegalStateException e) {
+      boolean wasFrameAdded = frame.is_video() ? mFlvVideoTagCache.offer(frame) : mFlvAudioTagCache.offer(frame);
+      if(!wasFrameAdded) {
         Log.i(TAG, "frame discarded");
         if (frame.is_video()) {
           mDroppedVideoFrames++;

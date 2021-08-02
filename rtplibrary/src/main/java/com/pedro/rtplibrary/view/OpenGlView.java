@@ -136,25 +136,21 @@ public class OpenGlView extends OpenGlViewBase {
 
           synchronized (sync) {
             if (surfaceManagerEncoder != null && !fpsLimiter.limitFPS()) {
+              int w = muteVideo ? 0 : encoderWidth;
+              int h = muteVideo ? 0 : encoderHeight;
               surfaceManagerEncoder.makeCurrent();
-              if (muteVideo) {
-                managerRender.drawScreen(0, 0, false, aspectRatioMode, streamRotation, false,
-                    isStreamVerticalFlip, isStreamHorizontalFlip);
-              } else {
-                managerRender.drawScreen(encoderWidth, encoderHeight, false, aspectRatioMode,
-                    streamRotation, false, isStreamVerticalFlip, isStreamHorizontalFlip);
-              }
-            } else if (takePhotoCallback != null && surfaceManagerPhoto != null) {
+              managerRender.drawScreen(w, h, false, aspectRatioMode,
+                  streamRotation, false, isStreamVerticalFlip, isStreamHorizontalFlip);
+              surfaceManagerEncoder.swapBuffer();
+            }
+            if (takePhotoCallback != null && surfaceManagerPhoto != null) {
               surfaceManagerPhoto.makeCurrent();
               managerRender.drawScreen(encoderWidth, encoderHeight, false, aspectRatioMode,
                   streamRotation, false, isStreamVerticalFlip, isStreamHorizontalFlip);
-            }
-            if (takePhotoCallback != null) {
               takePhotoCallback.onTakePhoto(GlUtil.getBitmap(encoderWidth, encoderHeight));
               takePhotoCallback = null;
+              surfaceManagerPhoto.swapBuffer();
             }
-            if (surfaceManagerEncoder != null) surfaceManagerEncoder.swapBuffer();
-            else if (surfaceManagerPhoto != null) surfaceManagerPhoto.swapBuffer();
           }
           if (!filterQueue.isEmpty()) {
             Filter filter = filterQueue.take();

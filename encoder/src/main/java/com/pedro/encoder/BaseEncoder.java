@@ -19,17 +19,18 @@ import java.util.concurrent.BlockingQueue;
  */
 public abstract class BaseEncoder implements EncoderCallback {
 
-  private static final String TAG = "BaseEncoder";
-  private MediaCodec.BufferInfo bufferInfo = new MediaCodec.BufferInfo();
+  protected String TAG = "BaseEncoder";
+  private final MediaCodec.BufferInfo bufferInfo = new MediaCodec.BufferInfo();
   private HandlerThread handlerThread;
   protected BlockingQueue<Frame> queue = new ArrayBlockingQueue<>(80);
   protected MediaCodec codec;
-  protected long presentTimeUs;
+  protected static long presentTimeUs;
   protected volatile boolean running = false;
   protected boolean isBufferMode = true;
   protected CodecUtil.Force force = CodecUtil.Force.FIRST_COMPATIBLE_FOUND;
   private MediaCodec.Callback callback;
   private long oldTimeStamp = 0L;
+  protected boolean shouldReset = true;
 
   public void restart() {
     start(false);
@@ -37,6 +38,9 @@ public abstract class BaseEncoder implements EncoderCallback {
   }
 
   public void start() {
+    if (presentTimeUs == 0) {
+      presentTimeUs = System.nanoTime() / 1000;
+    }
     start(true);
     initCodec();
   }
@@ -59,6 +63,7 @@ public abstract class BaseEncoder implements EncoderCallback {
               getDataFromEncoder();
             } catch (IllegalStateException e) {
               Log.i(TAG, "Encoding error", e);
+              reloadCodec();
             }
           }
         }
@@ -66,6 +71,8 @@ public abstract class BaseEncoder implements EncoderCallback {
     }
     running = true;
   }
+
+  public abstract void reset();
 
   public abstract void start(boolean resetTs);
 
@@ -79,7 +86,22 @@ public abstract class BaseEncoder implements EncoderCallback {
     }
   }
 
+  private void reloadCodec() {
+    //Sometimes encoder crash, we will try recover it. Reset encoder a time if crash
+    if (shouldReset) {
+      Log.e(TAG, "Encoder crashed, trying to recover it");
+      reset();
+    }
+  }
+
   public void stop() {
+    stop(true);
+  }
+
+  public void stop(boolean resetTs) {
+    if (resetTs) {
+      presentTimeUs = 0;
+    }
     running = false;
     stopImp();
     if (handlerThread != null) {
@@ -121,7 +143,7 @@ public abstract class BaseEncoder implements EncoderCallback {
         inputAvailable(codec, inBufferIndex);
       }
     }
-    for (; running; ) {
+    while (running) {
       int outBufferIndex = codec.dequeueOutputBuffer(bufferInfo, 0);
       if (outBufferIndex == MediaCodec.INFO_OUTPUT_FORMAT_CHANGED) {
         MediaFormat mediaFormat = codec.getOutputFormat();
@@ -140,14 +162,15 @@ public abstract class BaseEncoder implements EncoderCallback {
       int inBufferIndex) throws IllegalStateException {
     try {
       Frame frame = getInputFrame();
-      if (frame == null) return;
+      while (frame == null) frame = getInputFrame();
       byteBuffer.clear();
-      byteBuffer.put(frame.getBuffer(), frame.getOffset(), frame.getSize());
+      int size = Math.min(frame.getSize(), byteBuffer.remaining());
+      byteBuffer.put(frame.getBuffer(), frame.getOffset(), size);
       long pts = System.nanoTime() / 1000 - presentTimeUs;
-      mediaCodec.queueInputBuffer(inBufferIndex, 0, frame.getSize(), pts, 0);
+      mediaCodec.queueInputBuffer(inBufferIndex, 0, size, pts, 0);
     } catch (InterruptedException e) {
       Thread.currentThread().interrupt();
-    } catch (NullPointerException e) {
+    } catch (NullPointerException | IndexOutOfBoundsException e) {
       Log.i(TAG, "Encoding error", e);
     }
   }
@@ -206,6 +229,7 @@ public abstract class BaseEncoder implements EncoderCallback {
           inputAvailable(mediaCodec, inBufferIndex);
         } catch (IllegalStateException e) {
           Log.i(TAG, "Encoding error", e);
+          reloadCodec();
         }
       }
 
@@ -216,6 +240,7 @@ public abstract class BaseEncoder implements EncoderCallback {
           outputAvailable(mediaCodec, outBufferIndex, bufferInfo);
         } catch (IllegalStateException e) {
           Log.i(TAG, "Encoding error", e);
+          reloadCodec();
         }
       }
 

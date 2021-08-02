@@ -15,6 +15,7 @@ import net.ossrs.rtmp.ConnectCheckerRtmp;
 import net.ossrs.rtmp.SrsFlvMuxer;
 
 import java.nio.ByteBuffer;
+import java.util.ArrayList;
 import java.util.List;
 
 /**
@@ -26,18 +27,22 @@ import java.util.List;
 @RequiresApi(api = Build.VERSION_CODES.LOLLIPOP)
 public class RtmpCamera2 extends Camera2Base {
 
-  private SrsFlvMuxer srsFlvMuxer;
-  private SrsFlvMuxer srsFlvMuxer1;
+  private ArrayList<SrsFlvMuxer> srsFlvMuxer ;
+  int noOfStreams;
+
+
   /**
    * @deprecated This view produce rotations problems and could be unsupported in future versions.
    * Use {@link Camera2Base#Camera2Base(OpenGlView)} or {@link Camera2Base#Camera2Base(LightOpenGlView)}
    * instead.
    */
   @Deprecated
-  public RtmpCamera2(SurfaceView surfaceView, ConnectCheckerRtmp connectChecker) {
+  public RtmpCamera2(SurfaceView surfaceView, ConnectCheckerRtmp connectChecker,int noOfStreams) {
     super(surfaceView);
-    srsFlvMuxer = new SrsFlvMuxer(connectChecker);
-    srsFlvMuxer1 = new SrsFlvMuxer(connectChecker);
+    this.noOfStreams=noOfStreams;
+    for(int i=0;i<noOfStreams;i++){
+      srsFlvMuxer.set(i, new SrsFlvMuxer((ConnectCheckerRtmp) this));
+    }
   }
 
   /**
@@ -46,32 +51,40 @@ public class RtmpCamera2 extends Camera2Base {
    * instead.
    */
   @Deprecated
-  public RtmpCamera2(TextureView textureView, ConnectCheckerRtmp connectChecker) {
+  public RtmpCamera2(TextureView textureView, ConnectCheckerRtmp connectChecker,int noOfStreams) {
     super(textureView);
-    srsFlvMuxer = new SrsFlvMuxer(connectChecker);
-    srsFlvMuxer1 = new SrsFlvMuxer(connectChecker);
+    this.noOfStreams=noOfStreams;
+    for(int i=0;i<noOfStreams;i++){
+      srsFlvMuxer.set(i, new SrsFlvMuxer((ConnectCheckerRtmp) this));
+    }
+
 
   }
 
-  public RtmpCamera2(OpenGlView openGlView, ConnectCheckerRtmp connectChecker) {
+  public RtmpCamera2(OpenGlView openGlView, ConnectCheckerRtmp connectChecker,int noOfStreams) {
     super(openGlView);
-    srsFlvMuxer = new SrsFlvMuxer(connectChecker);
-    srsFlvMuxer1 = new SrsFlvMuxer(connectChecker);
-
+    this.noOfStreams=noOfStreams;
+    for(int i=0;i<noOfStreams;i++){
+      srsFlvMuxer.set(i, new SrsFlvMuxer((ConnectCheckerRtmp) this));
+    }
   }
 
-  public RtmpCamera2(LightOpenGlView lightOpenGlView, ConnectCheckerRtmp connectChecker) {
+  public RtmpCamera2(LightOpenGlView lightOpenGlView, ConnectCheckerRtmp connectChecker,int noOfStreams) {
     super(lightOpenGlView);
-    srsFlvMuxer = new SrsFlvMuxer(connectChecker);
-    srsFlvMuxer1 = new SrsFlvMuxer(connectChecker);
-
+    this.noOfStreams=noOfStreams;
+    for(int i=0;i<noOfStreams;i++){
+      srsFlvMuxer.set(i, new SrsFlvMuxer((ConnectCheckerRtmp) this));
+    }
   }
 
-  public RtmpCamera2(Context context, boolean useOpengl, ConnectCheckerRtmp connectChecker) {
+  public RtmpCamera2(Context context, boolean useOpengl, ConnectCheckerRtmp connectChecker,int noOfStreams) {
     super(context, useOpengl);
-    srsFlvMuxer = new SrsFlvMuxer(connectChecker);
-    srsFlvMuxer1 = new SrsFlvMuxer(connectChecker);
+    this.noOfStreams=noOfStreams;
+    for(int i=0;i<noOfStreams;i++){
+      srsFlvMuxer.set(i, new SrsFlvMuxer((ConnectCheckerRtmp) this));
 
+
+    }
   }
 
   /**
@@ -80,68 +93,102 @@ public class RtmpCamera2 extends Camera2Base {
    * @param profileIop Could be ProfileIop.BASELINE or ProfileIop.CONSTRAINED
    */
   public void setProfileIop(byte profileIop) {
-    srsFlvMuxer.setProfileIop(profileIop);
-    srsFlvMuxer1.setProfileIop(profileIop);
+    for(int i=0;i<noOfStreams;i++){
+      srsFlvMuxer.get(i).setProfileIop(profileIop);
+    }
+
   }
 
   @Override
   public void resizeCache(int newSize) throws RuntimeException {
-    srsFlvMuxer.resizeFlvTagCache(newSize);
-    srsFlvMuxer1.resizeFlvTagCache(newSize);
+    for(int i=0;i<noOfStreams;i++){
+      srsFlvMuxer.get(i).resizeFlvTagCache(newSize);
+    }
+
+
   }
 
   @Override
   public int getCacheSize() {
-    return srsFlvMuxer.getFlvTagCacheSize();
+    return srsFlvMuxer.get(0).getFlvTagCacheSize();
   }
 
   @Override
   public long getSentAudioFrames() {
-    return srsFlvMuxer.getSentAudioFrames() + srsFlvMuxer1.getSentAudioFrames();
+    long saf=0;
+    for(int i=0;i<noOfStreams;i++){
+      saf=+srsFlvMuxer.get(i).getSentAudioFrames();
+    }
+return saf;
   }
 
   @Override
   public long getSentVideoFrames() {
-    return srsFlvMuxer.getSentVideoFrames() + srsFlvMuxer1.getSentVideoFrames();
+    long svf=0;
+    for(int i=0;i<noOfStreams;i++){
+      svf=+srsFlvMuxer.get(i).getSentVideoFrames();
+    }
+    return svf;
+
   }
 
   @Override
   public long getDroppedAudioFrames() {
-    return srsFlvMuxer.getDroppedAudioFrames() + srsFlvMuxer1.getDroppedAudioFrames();
+    long daf=0;
+    for(int i=0;i<noOfStreams;i++){
+      daf=+srsFlvMuxer.get(i).getDroppedAudioFrames();
+    }
+    return daf;
+
   }
 
   @Override
   public long getDroppedVideoFrames() {
-    return srsFlvMuxer.getDroppedVideoFrames() + srsFlvMuxer1.getDroppedVideoFrames();
+    long dvf=0;
+    for(int i=0;i<noOfStreams;i++){
+      dvf=+srsFlvMuxer.get(i).getDroppedVideoFrames();
+    }
+    return dvf;
+
   }
 
   @Override
   public void resetSentAudioFrames() {
-    srsFlvMuxer.resetSentAudioFrames();
-    srsFlvMuxer1.resetSentAudioFrames();
+
+    for(int i=0;i<noOfStreams;i++){
+     srsFlvMuxer.get(i).resetSentAudioFrames();
+    }
+
+
   }
 
   @Override
   public void resetSentVideoFrames() {
-    srsFlvMuxer.resetSentVideoFrames();
-    srsFlvMuxer1.resetSentVideoFrames();
+    for(int i=0;i<noOfStreams;i++){
+      srsFlvMuxer.get(i).resetSentVideoFrames();
+    }
+
   }
 
   @Override
   public void resetDroppedAudioFrames() {
-    srsFlvMuxer.resetDroppedAudioFrames();
-    srsFlvMuxer1.resetDroppedAudioFrames();
+    for(int i=0;i<noOfStreams;i++){
+      srsFlvMuxer.get(i).resetDroppedAudioFrames();
+    }
+
   }
 
   @Override
   public void resetDroppedVideoFrames() {
-    srsFlvMuxer.resetDroppedVideoFrames();
-    srsFlvMuxer1.resetDroppedVideoFrames();
+    for(int i=0;i<noOfStreams;i++){
+      srsFlvMuxer.get(i).resetDroppedVideoFrames();
+    }
+
   }
 
   @Override
   public void setAuthorization(String user, String password) {
-    srsFlvMuxer.setAuthorization(user, password);
+    srsFlvMuxer.get(0).setAuthorization(user, password);
   }
 
   /**
@@ -152,81 +199,133 @@ public class RtmpCamera2 extends Camera2Base {
    * https://learn.akamai.com/en-us/webhelp/media-services-live/media-services-live-encoder-compatibility-testing-and-qualification-guide-v4.0/GUID-F941C88B-9128-4BF4-A81B-C2E5CFD35BBF.html
    */
   public void forceAkamaiTs(boolean enabled) {
-    srsFlvMuxer.forceAkamaiTs(enabled);
+    for(int i=0;i<noOfStreams;i++){
+      srsFlvMuxer.get(i).forceAkamaiTs(enabled);
+    }
+
   }
 
   @Override
   protected void prepareAudioRtp(boolean isStereo, int sampleRate) {
-    srsFlvMuxer.setIsStereo(isStereo);
-    srsFlvMuxer.setSampleRate(sampleRate);
-    srsFlvMuxer1.setIsStereo(isStereo);
-    srsFlvMuxer1.setSampleRate(sampleRate);
+    for(int i=0;i<noOfStreams;i++){
+      srsFlvMuxer.get(i).setIsStereo(isStereo);
+      srsFlvMuxer.get(i).setSampleRate(sampleRate);
+    }
+
   }
 
   @Override
   protected void startStreamRtp(List<String> url) {
     if (videoEncoder.getRotation() == 90 || videoEncoder.getRotation() == 270) {
-      srsFlvMuxer.setVideoResolution(videoEncoder.getHeight(), videoEncoder.getWidth());
-      srsFlvMuxer1.setVideoResolution(videoEncoder.getHeight(), videoEncoder.getWidth());
+      for(int i=0;i<noOfStreams;i++){
+        srsFlvMuxer.get(i).setVideoResolution(videoEncoder.getHeight(), videoEncoder.getWidth());
+      }
+
     } else {
-      srsFlvMuxer.setVideoResolution(videoEncoder.getWidth(), videoEncoder.getHeight());
-      srsFlvMuxer1.setVideoResolution(videoEncoder.getWidth(), videoEncoder.getHeight());
+      for(int i=0;i<noOfStreams;i++){
+        srsFlvMuxer.get(i).setVideoResolution(videoEncoder.getWidth(), videoEncoder.getHeight());
+      }
+
     }
-    srsFlvMuxer.start(url.get(0));
-    srsFlvMuxer1.start(url.get(1));
+    for(int i=0;i<noOfStreams;i++){
+      srsFlvMuxer.get(i).start(url.get(i));
+    }
+
   }
 
   @Override
   protected void stopStreamRtp() {
-    srsFlvMuxer.stop();
-    srsFlvMuxer1.stop();
+    for(int i=0;i<noOfStreams;i++){
+      srsFlvMuxer.get(i).stop();
+    }
+
   }
 
   @Override
   public void setReTries(int reTries) {
-    srsFlvMuxer.setReTries(reTries);
-    srsFlvMuxer1.setReTries(reTries);
+    for(int i=0;i<noOfStreams;i++){
+      srsFlvMuxer.get(i).setReTries(reTries);
+    }
+
   }
 
   @Override
   public boolean shouldRetry(String reason) {
-    return srsFlvMuxer.shouldRetry(reason);
+
+      return srsFlvMuxer.get(0).shouldRetry(reason);
+
+
   }
 
   @Override
   public void reConnect(long delay) {
-    srsFlvMuxer.reConnect(delay);
-    srsFlvMuxer1.reConnect(delay);
+    for(int i=0;i<noOfStreams;i++){
+      srsFlvMuxer.get(i).reConnect(delay);
+    }
+
   }
 
   @Override
   public boolean hasCongestion() {
-    return false;
+
+    return srsFlvMuxer.get(0).hasCongestion();
   }
 
   @Override
   protected void getAacDataRtp(ByteBuffer aacBuffer, MediaCodec.BufferInfo info) {
-    srsFlvMuxer.sendAudio(aacBuffer.duplicate(), info);
-    srsFlvMuxer1.sendAudio(aacBuffer, info);
+    if(noOfStreams==1){
+      srsFlvMuxer.get(0).sendAudio(aacBuffer, info);
+    }
+    else{
+      for(int i=0;i<noOfStreams;i++){
+        srsFlvMuxer.get(i).sendAudio(aacBuffer.duplicate(), info);
+      }
+
+      srsFlvMuxer.get(noOfStreams-1).sendAudio(aacBuffer, info);
+
+    }
+
+
   }
 
   @Override
   protected void onSpsPpsVpsRtp(ByteBuffer sps, ByteBuffer pps, ByteBuffer vps) {
-    srsFlvMuxer.setSpsPPs(sps.duplicate(), pps.duplicate());
-    srsFlvMuxer1.setSpsPPs(sps, pps);
+    if(noOfStreams==1){
+      srsFlvMuxer.get(0).setSpsPPs(sps, pps);
+    }
+    else{
+      for(int i=0;i<noOfStreams;i++){
+        srsFlvMuxer.get(i).setSpsPPs(sps.duplicate(), pps.duplicate());
+      }
+
+      srsFlvMuxer.get(noOfStreams-1).setSpsPPs(sps, pps);
+
+    }
+
   }
 
   @Override
   protected void getH264DataRtp(ByteBuffer h264Buffer, MediaCodec.BufferInfo info) {
-    srsFlvMuxer.sendVideo(h264Buffer.duplicate(), info);
-    srsFlvMuxer1.sendVideo(h264Buffer, info);
-  }
+    if(noOfStreams==1){
+      srsFlvMuxer.get(0).sendVideo(h264Buffer, info);
+    }
+    else{
+      for(int i=0;i<noOfStreams;i++){
+        srsFlvMuxer.get(i).sendVideo(h264Buffer.duplicate(), info);
+      }
 
+      srsFlvMuxer.get(noOfStreams-1).sendVideo(h264Buffer, info);
+
+    }
+
+  }
 
   @Override
   public void setLogs(boolean enable) {
-    srsFlvMuxer.setLogs(enable);
-    srsFlvMuxer1.setLogs(enable);
+    for(int i=0;i<noOfStreams;i++){
+      srsFlvMuxer.get(i).setLogs(enable);
+    }
+
   }
 }
 

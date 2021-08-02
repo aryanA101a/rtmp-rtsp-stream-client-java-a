@@ -20,7 +20,6 @@ import com.pedro.rtsp.utils.ConnectCheckerRtsp;
 import java.io.File;
 import java.io.IOException;
 import java.text.SimpleDateFormat;
-import java.util.Arrays;
 import java.util.Date;
 import java.util.Locale;
 
@@ -128,7 +127,7 @@ public class TextureModeRtspActivity extends AppCompatActivity
           if (rtspCamera2.isRecording()
               || rtspCamera2.prepareAudio() && rtspCamera2.prepareVideo()) {
             button.setText(R.string.stop_button);
-            rtspCamera2.startStream(Arrays.asList("rtmp://a.rtmp.youtube.com/live2/ap2y-k3fp-ma62-eybg-46ar", "rtmps://live-api-s.facebook.com:443/rtmp/FB-1382039858862049-0-Abzp9AEJL9KGGooe"));
+//            rtspCamera2.startStream(etUrl.getText().toString());
           } else {
             Toast.makeText(this, "Error preparing stream, This device cant do it",
                 Toast.LENGTH_SHORT).show();

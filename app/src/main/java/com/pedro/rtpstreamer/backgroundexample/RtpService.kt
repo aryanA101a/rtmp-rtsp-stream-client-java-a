@@ -89,7 +89,7 @@ class RtpService : Service() {
 
     fun init(context: Context) {
       contextApp = context
-      if (camera2Base == null) camera2Base = RtmpCamera2(context, true, connectCheckerRtp)
+//      if (camera2Base == null) camera2Base = RtmpCamera2(context, true, connectCheckerRtp)
     }
 
     fun stopStream() {
@@ -153,27 +153,13 @@ class RtpService : Service() {
   private fun prepareStreamRtp() {
     stopStream()
     stopPreview()
-    if (endpoint!!.startsWith("rtmp")) {
-      camera2Base = if (openGlView == null) {
-        RtmpCamera2(baseContext, true, connectCheckerRtp)
-      } else {
-        RtmpCamera2(openGlView, connectCheckerRtp)
-      }
-    } else {
-      camera2Base = if (openGlView == null) {
-        RtspCamera2(baseContext, true, connectCheckerRtp)
-      } else {
-        RtspCamera2(openGlView, connectCheckerRtp)
-      }
-    }
+
   }
 
   private fun startStreamRtp(endpoint: String) {
     if (!camera2Base!!.isStreaming) {
       if (camera2Base!!.prepareVideo() && camera2Base!!.prepareAudio()) {
-
-        camera2Base!!.startStream(mutableListOf( "rtmp://a.rtmp.youtube.com/live2/ap2y-k3fp-ma62-eybg-46ar",
-          "rtmps://live-api-s.facebook.com:443/rtmp/FB-1382039858862049-0-Abzp9AEJL9KGGooe"))
+//        camera2Base!!.startStream(endpoint)
       }
     } else {
       showNotification("You are already streaming :(")

@@ -49,9 +49,7 @@ public class RtmpConnection implements RtmpPublisher {
   private String appName;
   private String streamName;
   private String publishType;
-  private String swfUrl;
   private String tcUrl;
-  private String pageUrl;
   private Socket socket;
   private final RtmpSessionInfo rtmpSessionInfo = new RtmpSessionInfo();
   private final RtmpDecoder rtmpDecoder = new RtmpDecoder(rtmpSessionInfo);
@@ -72,9 +70,6 @@ public class RtmpConnection implements RtmpPublisher {
   //for auth
   private String user = null;
   private String password = null;
-  private String salt = null;
-  private String challenge = null;
-  private String opaque = null;
   private boolean onAuth = false;
   private String netConnectionDescription;
   private final BitrateManager bitrateManager;
@@ -137,8 +132,6 @@ public class RtmpConnection implements RtmpPublisher {
       return false;
     }
 
-    swfUrl = "";
-    pageUrl = "";
     host = rtmpMatcher.group(1);
     String portStr = rtmpMatcher.group(2);
     port = portStr != null ? Integer.parseInt(portStr) : 1935;
@@ -157,6 +150,21 @@ public class RtmpConnection implements RtmpPublisher {
         + ", publishPath: "
         + streamName);
     rtmpSessionInfo.reset();
+    if (!establishConnection()) return false;
+    // Start the "main" handling thread
+    rxPacketHandler = new Thread(new Runnable() {
+
+      @Override
+      public void run() {
+        Log.d(TAG, "starting main rx handler loop");
+        handleRxPacketLoop();
+      }
+    });
+    rxPacketHandler.start();
+    return rtmpConnect();
+  }
+
+  private boolean establishConnection() {
     try {
       if (!tlsEnabled) {
         socket = new Socket();
@@ -171,23 +179,12 @@ public class RtmpConnection implements RtmpPublisher {
       Log.d(TAG, "connect(): socket connection established, doing handhake...");
       handshake(inputStream, outputStream);
       Log.d(TAG, "connect(): handshake done");
+      return true;
     } catch (Exception e) {
       Log.e(TAG, "Error", e);
       connectCheckerRtmp.onConnectionFailedRtmp("Connect error, " + e.getMessage());
       return false;
     }
-
-    // Start the "main" handling thread
-    rxPacketHandler = new Thread(new Runnable() {
-
-      @Override
-      public void run() {
-        Log.d(TAG, "starting main rx handler loop");
-        handleRxPacketLoop();
-      }
-    });
-    rxPacketHandler.start();
-    return rtmpConnect();
   }
 
   private boolean rtmpConnect() {
@@ -196,11 +193,7 @@ public class RtmpConnection implements RtmpPublisher {
       return false;
     }
 
-    if (user != null && password != null) {
-      sendConnect("?authmod=adobe&user=" + user);
-    } else {
-      sendConnect("");
-    }
+    sendConnect("");
     synchronized (connectingLock) {
       try {
         connectingLock.wait(5000);
@@ -225,20 +218,20 @@ public class RtmpConnection implements RtmpPublisher {
     AmfObject args = new AmfObject();
     args.setProperty("app", appName + user);
     args.setProperty("flashVer", "FMLE/3.0 (compatible; Lavf57.56.101)");
-    args.setProperty("swfUrl", swfUrl);
+    args.setProperty("swfUrl", "");
     args.setProperty("tcUrl", tcUrl + user);
     args.setProperty("fpad", false);
     args.setProperty("capabilities", 239);
     args.setProperty("audioCodecs", 3191);
     args.setProperty("videoCodecs", 252);
     args.setProperty("videoFunction", 1);
-    args.setProperty("pageUrl", pageUrl);
+    args.setProperty("pageUrl", "");
     args.setProperty("objectEncoding", 0);
     invoke.addData(args);
     sendRtmpPacket(invoke);
   }
 
-  private String getAuthUserResult(String user, String password, String salt, String challenge,
+  private String getAdobeAuthUserResult(String user, String password, String salt, String challenge,
       String opaque) {
     String challenge2 = String.format("%08x", new Random().nextInt());
     String response = Util.stringToMD5BASE64(user + salt + password);
@@ -248,12 +241,37 @@ public class RtmpConnection implements RtmpPublisher {
       response += challenge;
     }
     response = Util.stringToMD5BASE64(response + challenge2);
-    String result =
-        "?authmod=adobe&user=" + user + "&challenge=" + challenge2 + "&response=" + response;
+    String result = "?authmod=adobe&user=" + user + "&challenge=" + challenge2 + "&response=" + response;
     if (!opaque.isEmpty()) {
       result += "&opaque=" + opaque;
     }
     return result;
+  }
+
+  /**
+   * Limelight auth. This auth is closely to Digest auth
+   *  http://tools.ietf.org/html/rfc2617
+   *  http://en.wikipedia.org/wiki/Digest_access_authentication
+   *
+   *  https://github.com/ossrs/librtmp/blob/feature/srs/librtmp/rtmp.c
+   */
+  private String getLlnwAuthUserResult(String user, String password, String nonce, String app) {
+    String authMod = "llnw";
+    String realm = "live";
+    String method = "publish";
+    String qop = "auth";
+    String ncHex = String.format("%08x", 1);
+    String cNonce = String.format("%08x", new Random().nextInt());
+    String path = app;
+    //extract query parameters
+    int queryPos = path.indexOf("?");
+    if (queryPos >= 0) path = path.substring(0, queryPos);
+
+    if (!path.contains("/")) path += "/_definst_";
+    String hash1 = Util.getMd5Hash(user + ":" + realm + ":" + password);
+    String hash2 = Util.getMd5Hash(method + ":/" + path);
+    String hash3 = Util.getMd5Hash(hash1 + ":" + nonce + ":" + ncHex + ":" + cNonce + ":" + qop + ":" + hash2);
+    return "?authmod=" + authMod + "&user=" + user + "&nonce=" + nonce + "&cnonce=" + cNonce + "&nc=" + ncHex + "&response=" + hash3;
   }
 
   @Override
@@ -428,19 +446,12 @@ public class RtmpConnection implements RtmpPublisher {
     publishPermitted = false;
     netConnectionDescription = null;
     tcUrl = null;
-    swfUrl = null;
-    pageUrl = null;
     appName = null;
     streamName = null;
     publishType = null;
     currentStreamId = 0;
     transactionIdCounter = 0;
     socket = null;
-    user = null;
-    password = null;
-    salt = null;
-    challenge = null;
-    opaque = null;
     rtmpSessionInfo.reset();
   }
 
@@ -586,16 +597,15 @@ public class RtmpConnection implements RtmpPublisher {
           String description = ((AmfString) ((AmfObject) invoke.getData().get(1)).getProperty(
               "description")).getValue();
           Log.i(TAG, description);
-          if (description.contains("reason=authfailed")) {
+          if (description.contains("reason=authfail") || description.contains("reason=nosuchuser")) {
             connectCheckerRtmp.onAuthErrorRtmp();
             connected = false;
             synchronized (connectingLock) {
               connectingLock.notifyAll();
             }
-          } else if (user != null
-              && password != null
-              && description.contains("challenge=")
-              && description.contains("salt=")) {
+          } else if (user != null && password != null
+              && description.contains("challenge=") && description.contains("salt=") //adobe response
+              || description.contains("nonce=")) { //llnw response
             onAuth = true;
             try {
               shutdown(false);
@@ -612,9 +622,6 @@ public class RtmpConnection implements RtmpPublisher {
             inputStream = new BufferedInputStream(socket.getInputStream());
             outputStream = new BufferedOutputStream(socket.getOutputStream());
             Log.d(TAG, "connect(): socket connection established, doing handshake...");
-            salt = Util.getSalt(description);
-            challenge = Util.getChallenge(description);
-            opaque = Util.getOpaque(description);
             handshake(inputStream, outputStream);
             rxPacketHandler = new Thread(new Runnable() {
               @Override
@@ -623,8 +630,33 @@ public class RtmpConnection implements RtmpPublisher {
               }
             });
             rxPacketHandler.start();
-            sendConnect(getAuthUserResult(user, password, salt, challenge, opaque));
-          } else if (description.contains("code=403") && user == null || password == null) {
+            if (description.contains("challenge=") && description.contains("salt=")) { //create adobe auth
+              String salt = Util.getSalt(description);
+              String challenge = Util.getChallenge(description);
+              String opaque = Util.getOpaque(description);
+              Log.i(TAG, "sending adobe auth response");
+              sendConnect(getAdobeAuthUserResult(user, password, salt, challenge, opaque));
+            } else if (description.contains("nonce=")){ //create llnw auth
+              String nonce = Util.getNonce(description);
+              Log.i(TAG, "sending llnw auth response");
+              sendConnect(getLlnwAuthUserResult(user, password, nonce, appName));
+            }
+          } else if (description.contains("code=403")) {
+            if (user != null && password != null) {
+              // few servers close connection after send code=403
+              if (socket == null || !socket.getKeepAlive()) {
+                establishConnection();
+              }
+              if (description.contains("authmod=adobe")) {
+                Log.i(TAG, "sending auth mode adobe");
+                sendConnect("?authmod=adobe&user=" + user);
+                return;
+              } else if (description.contains("authmod=llnw")) {
+                Log.i(TAG, "sending auth mode llnw");
+                sendConnect("?authmod=llnw&user=" + user);
+                return;
+              }
+            }
             connectCheckerRtmp.onAuthErrorRtmp();
             connected = false;
             synchronized (connectingLock) {
