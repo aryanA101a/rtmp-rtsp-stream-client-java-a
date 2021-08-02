@@ -41,7 +41,7 @@ public class RtmpCamera2 extends Camera2Base {
     super(surfaceView);
     this.noOfStreams=noOfStreams;
     for(int i=0;i<noOfStreams;i++){
-      srsFlvMuxer.set(i, new SrsFlvMuxer((ConnectCheckerRtmp) this));
+      srsFlvMuxer.set(i, new SrsFlvMuxer(connectChecker));
     }
   }
 
@@ -55,7 +55,7 @@ public class RtmpCamera2 extends Camera2Base {
     super(textureView);
     this.noOfStreams=noOfStreams;
     for(int i=0;i<noOfStreams;i++){
-      srsFlvMuxer.set(i, new SrsFlvMuxer((ConnectCheckerRtmp) this));
+      srsFlvMuxer.set(i, new SrsFlvMuxer(connectChecker));
     }
 
 
@@ -65,7 +65,7 @@ public class RtmpCamera2 extends Camera2Base {
     super(openGlView);
     this.noOfStreams=noOfStreams;
     for(int i=0;i<noOfStreams;i++){
-      srsFlvMuxer.set(i, new SrsFlvMuxer((ConnectCheckerRtmp) this));
+      srsFlvMuxer.set(i, new SrsFlvMuxer(connectChecker));
     }
   }
 
@@ -73,7 +73,7 @@ public class RtmpCamera2 extends Camera2Base {
     super(lightOpenGlView);
     this.noOfStreams=noOfStreams;
     for(int i=0;i<noOfStreams;i++){
-      srsFlvMuxer.set(i, new SrsFlvMuxer((ConnectCheckerRtmp) this));
+      srsFlvMuxer.set(i, new SrsFlvMuxer(connectChecker));
     }
   }
 
@@ -81,7 +81,7 @@ public class RtmpCamera2 extends Camera2Base {
     super(context, useOpengl);
     this.noOfStreams=noOfStreams;
     for(int i=0;i<noOfStreams;i++){
-      srsFlvMuxer.set(i, new SrsFlvMuxer((ConnectCheckerRtmp) this));
+      srsFlvMuxer.set(i, new SrsFlvMuxer(connectChecker));
 
 
     }
